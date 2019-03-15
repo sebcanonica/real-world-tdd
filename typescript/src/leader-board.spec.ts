@@ -1,7 +1,8 @@
 import express from "express"
 import {assert, expect} from 'chai';
 import request from "supertest-as-promised"
-import got from "got"
+
+import {FootballService, HttpFootballService} from "./leader-board"
 
 describe('LeaderBoard', () => {
 
@@ -28,13 +29,14 @@ const REFERENCE = [
     { type: 'goal', gameId: 'lyon-marseille', team: 'lyon' },
     { type: 'goal', gameId: 'lyon-marseille', team: 'marseille' },
     { type: 'game-end', gameId: 'lyon-marseille' },
-    { type: 'game-start', gameId: 'paris-monaco' } ];
+    { type: 'game-start', gameId: 'paris-monaco' },
+    { type: 'goal', gameId: 'lyon-marseille', team: 'lyon' } ];
 
 function assertValidEvents(events) {
     expect(events).to.deep.eq(REFERENCE);
 }
 
-class MockedFootballService {
+class MockedFootballService implements FootballService {
     async getEvents() {
         return REFERENCE;
     };
@@ -43,7 +45,7 @@ class MockedFootballService {
 describe('Football events dependency', function () {
 
     it('is what it is and i want to capture it', async () => {        
-        const actual = (await got('http://localhost:5010/events', {json: true})).body;
+        const actual = await( new HttpFootballService().getEvents());
         assertValidEvents(actual);
     }).timeout(6000);
 
