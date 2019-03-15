@@ -5,7 +5,7 @@ import got from "got"
 
 describe('LeaderBoard', () => {
 
-    it('should display a  leaderboard with  the state of all games', async () => {
+    xit('should display a  leaderboard with  the state of all games', async () => {
         const app = express() // this is the start of the actual production code
         // You'll have to change this route and do something sensible in order
         // for the test to pass. Eventually you'll have to move this into "Production" code
@@ -20,5 +20,20 @@ describe('LeaderBoard', () => {
 
     }).timeout(6000);
 
+
+});
+
+describe('Football events dependency', function () {
+
+    it('is what it is and i want to capture it', async () => {        
+        const actual = (await got('http://localhost:5010/events', {json: true})).body;
+        expect(actual).to.deep.eq([ 
+            { type: 'game-start', gameId: 'lyon-marseille' },
+            { type: 'goal', gameId: 'lyon-marseille', team: 'lyon' },
+            { type: 'goal', gameId: 'lyon-marseille', team: 'marseille' },
+            { type: 'game-end', gameId: 'lyon-marseille' },
+            { type: 'game-start', gameId: 'paris-monaco' } ]
+        );
+    }).timeout(6000);
 
 });
