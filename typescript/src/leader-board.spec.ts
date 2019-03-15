@@ -1,26 +1,26 @@
-import express from "express"
 import {assert, expect} from 'chai';
 import request from "supertest-as-promised"
 
-import {FootballService, HttpFootballService} from "./leader-board"
+import {FootballService, HttpFootballService, createLeaderBoardApp} from "./leader-board"
 
 describe('LeaderBoard', () => {
 
-    xit('should display a  leaderboard with  the state of all games', async () => {
-        const app = express() // this is the start of the actual production code
-        // You'll have to change this route and do something sensible in order
-        // for the test to pass. Eventually you'll have to move this into "Production" code
-        app.get('/foo', (req, res) => {
-            res.send('bar')
-        })
+    it('should display a leaderboard with one game started', async () => {
+        const onlyOneGameStart = new MockedFootballService([
+            { type: 'game-start', gameId: 'uriage-meylan' }
+        ]);
+        const app = createLeaderBoardApp(onlyOneGameStart);
 
         let {status, body} = await request(app).get('/leaderboard')
 
         expect(status).eq(200)
-        // then assert something on the response body
-
-    }).timeout(6000);
-
+        expect(body).to.deep.eq([{ 
+            home: "Uriage", 
+            visitor: "Meylan", 
+            score: [0, 0], 
+            state: "in progress"
+        }]);
+    });
 
 });
 
@@ -28,7 +28,10 @@ function assertValidEvents(events) {
     expect(events).to.be.an('array');
     events.forEach(event => {
         expect(event.type).to.be.oneOf(['game-start', 'goal', 'game-end']);
-        expect(event.gameId.split('-')).to.be.of.length(2);
+        const teamNames = event.gameId.split('-');
+        expect(teamNames).to.be.of.length(2);
+        expect(teamNames[0]).to.eq(teamNames[0].toLowerCase());
+        expect(teamNames[1]).to.eq(teamNames[1].toLowerCase());
         if (event.type === 'goal') {
             expect(event.gameId).to.include(event.team);
         }
@@ -50,7 +53,7 @@ class MockedFootballService implements FootballService {
 
 describe('Football events dependency', function () {
 
-    it('is what it is and i want to capture it', async () => {        
+    xit('is what it is and i want to capture it', async () => {        
         const actual = await( new HttpFootballService().getEvents());
         assertValidEvents(actual);
     }).timeout(6000);
@@ -68,3 +71,27 @@ describe('Football events dependency', function () {
 
     });
 });
+
+
+import got from "got"
+
+xdescribe('System test', function() {
+    it("should return the leaderboard with today's live data", async () => {
+        const leaderBoard = (await got('http://localhost:5020/leaderboard', {json: true})).body;
+        
+        expect(leaderBoard).to.be.an('array');
+        leaderBoard.forEach( game => {
+            expect(game).to.have.keys( 'home', 'visitor', 'score', 'state' );
+            expect(game.score).to.be.an('array');
+            assertPositiveInteger(game.score[0]);
+            assertPositiveInteger(game.score[1]);
+            expect(game.state).to.be.oneOf(['in progress', 'finished']);
+        });        
+    }).timeout(6000);
+});
+
+function assertPositiveInteger(value) {
+    expect(value).to.be.a('number');
+    expect(value % 1).to.equals(0);
+    expect(value).to.be.at.least(0);
+}
