@@ -24,14 +24,6 @@ describe('LeaderBoard', () => {
 
 });
 
-const REFERENCE = [ 
-    { type: 'game-start', gameId: 'lyon-marseille' },
-    { type: 'goal', gameId: 'lyon-marseille', team: 'lyon' },
-    { type: 'goal', gameId: 'lyon-marseille', team: 'marseille' },
-    { type: 'game-end', gameId: 'lyon-marseille' },
-    { type: 'game-start', gameId: 'paris-monaco' },
-    { type: 'goal', gameId: 'lyon-marseille', team: 'lyon' } ];
-
 function assertValidEvents(events) {
     expect(events).to.be.an('array');
     events.forEach(event => {
@@ -44,8 +36,15 @@ function assertValidEvents(events) {
 }
 
 class MockedFootballService implements FootballService {
+    _events;
+
+    constructor(events) {
+        this._events = events;
+    }
+
     async getEvents() {
-        return REFERENCE;
+        assertValidEvents(this._events);
+        return this._events;
     };
 }
 
@@ -58,7 +57,12 @@ describe('Football events dependency', function () {
 
     describe('Mocked dependency', () => {
         it('should be able to return the same content', async () => {
-            const actual = await (new MockedFootballService().getEvents());
+            const actual = await (new MockedFootballService([ 
+                { type: 'game-start', gameId: 'lyon-marseille' },
+                { type: 'goal', gameId: 'lyon-marseille', team: 'lyon' },
+                { type: 'goal', gameId: 'lyon-marseille', team: 'marseille' },
+                { type: 'game-end', gameId: 'lyon-marseille' }
+            ]).getEvents());
             assertValidEvents(actual);
         });
 
