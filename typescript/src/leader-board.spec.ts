@@ -23,17 +23,35 @@ describe('LeaderBoard', () => {
 
 });
 
+const REFERENCE = [ 
+    { type: 'game-start', gameId: 'lyon-marseille' },
+    { type: 'goal', gameId: 'lyon-marseille', team: 'lyon' },
+    { type: 'goal', gameId: 'lyon-marseille', team: 'marseille' },
+    { type: 'game-end', gameId: 'lyon-marseille' },
+    { type: 'game-start', gameId: 'paris-monaco' } ];
+
+function assertValidEvents(events) {
+    expect(events).to.deep.eq(REFERENCE);
+}
+
+class MockedFootballService {
+    async getEvents() {
+        return REFERENCE;
+    };
+}
+
 describe('Football events dependency', function () {
 
     it('is what it is and i want to capture it', async () => {        
         const actual = (await got('http://localhost:5010/events', {json: true})).body;
-        expect(actual).to.deep.eq([ 
-            { type: 'game-start', gameId: 'lyon-marseille' },
-            { type: 'goal', gameId: 'lyon-marseille', team: 'lyon' },
-            { type: 'goal', gameId: 'lyon-marseille', team: 'marseille' },
-            { type: 'game-end', gameId: 'lyon-marseille' },
-            { type: 'game-start', gameId: 'paris-monaco' } ]
-        );
+        assertValidEvents(actual);
     }).timeout(6000);
 
+    describe('Mocked dependency', () => {
+        it('should be able to return the same content', async () => {
+            const actual = await (new MockedFootballService().getEvents());
+            assertValidEvents(actual);
+        });
+
+    });
 });
