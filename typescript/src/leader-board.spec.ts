@@ -33,7 +33,14 @@ const REFERENCE = [
     { type: 'goal', gameId: 'lyon-marseille', team: 'lyon' } ];
 
 function assertValidEvents(events) {
-    expect(events).to.deep.eq(REFERENCE);
+    expect(events).to.be.an('array');
+    events.forEach(event => {
+        expect(event.type).to.be.oneOf(['game-start', 'goal', 'game-end']);
+        expect(event.gameId.split('-')).to.be.of.length(2);
+        if (event.type === 'goal') {
+            expect(event.gameId).to.include(event.team);
+        }
+    });
 }
 
 class MockedFootballService implements FootballService {
