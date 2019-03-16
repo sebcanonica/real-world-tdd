@@ -6,21 +6,77 @@ import {FootballService, HttpFootballService, createLeaderBoardApp} from "./lead
 describe('LeaderBoard', () => {
 
     it('should display a leaderboard with one game started', async () => {
-        const onlyOneGameStart = new MockedFootballService([
+        const actual = await queryLeaderBoard([
             { type: 'game-start', gameId: 'uriage-meylan' }
         ]);
-        const app = createLeaderBoardApp(onlyOneGameStart);
-
-        let {status, body} = await request(app).get('/leaderboard')
-
-        expect(status).eq(200)
-        expect(body).to.deep.eq([{ 
-            home: "Uriage", 
-            visitor: "Meylan", 
-            score: [0, 0], 
-            state: "in progress"
-        }]);
+        
+        expect(actual).to.deep.eq([
+            { home: "Uriage", visitor: "Meylan", score: [0, 0], state: "in progress"}
+        ]);
     });
+
+    it('should display all games when multiple are started', async () => {
+        const actual = await queryLeaderBoard([
+            { type: 'game-start', gameId: 'uriage-meylan' },
+            { type: 'game-start', gameId: 'fontaine-sassenage' }
+        ]);
+
+        expect(actual).to.deep.eq([
+            { home: "Uriage", visitor: "Meylan", score: [0, 0], state: "in progress"},
+            { home: "Fontaine", visitor: "Sassenage", score: [0, 0], state: "in progress"}
+        ]);
+    });
+
+    it('should display a leaderboard with one game finished', async () => {
+        const actual = await queryLeaderBoard([
+            { type: 'game-start', gameId: 'uriage-meylan' },
+            { type: 'game-end', gameId: 'uriage-meylan' },
+        ]);
+        
+        expect(actual).to.deep.eq([
+            { home: "Uriage", visitor: "Meylan", score: [0, 0], state: "finished"}
+        ]);
+    });
+
+    it('should display a leaderboard with 1 game in-progress and another finished', async () => {
+        const actual = await queryLeaderBoard([
+            { type: 'game-start', gameId: 'uriage-meylan' },
+            { type: 'game-start', gameId: 'fontaine-sassenage' },
+            { type: 'game-end', gameId: 'uriage-meylan' },
+        ]);
+        
+        expect(actual).to.deep.eq([
+            { home: "Uriage", visitor: "Meylan", score: [0, 0], state: "finished"},
+            { home: "Fontaine", visitor: "Sassenage", score: [0, 0], state: "in progress"}
+        ]);
+    });
+
+    it('should add points for home team', async () => {
+        const actual = await queryLeaderBoard([
+            { type: 'game-start', gameId: 'uriage-meylan' },
+            { type: 'goal', gameId: 'uriage-meylan', team:'uriage' },
+        ]);
+        
+        expect(actual).to.deep.eq([
+            { home: "Uriage", visitor: "Meylan", score: [1, 0], state: "in progress"}
+        ]);
+    });
+
+    it('should add points for visitor team', async () => {
+        const actual = await queryLeaderBoard([
+            { type: 'game-start', gameId: 'uriage-meylan' },
+            { type: 'goal', gameId: 'uriage-meylan', team:'meylan' },
+        ]);
+        
+        expect(actual).to.deep.eq([
+            { home: "Uriage", visitor: "Meylan", score: [0, 1], state: "in progress"}
+        ]);
+    });
+
+    async function queryLeaderBoard(events) {
+        const app = createLeaderBoardApp(new MockedFootballService(events));
+        return (await request(app).get('/leaderboard')).body;
+    }
 
 });
 
