@@ -12,7 +12,8 @@ namespace LeaderboardApp
         {
             services
                 .AddRouting()
-                .AddHttpClient();
+                .AddHttpClient()
+                .AddSingleton<IFootballEventsSource, HttpFootballEventsSource>();
         }
 
         // Use this method to configure the HTTP request pipeline.
@@ -26,14 +27,9 @@ namespace LeaderboardApp
                     {
                         return char.ToUpper(input[0]) + input.Substring(1);
                     }
+                    var eventsSource = context.RequestServices.GetRequiredService<IFootballEventsSource>();
+                    var events = await eventsSource.FetchEvents();
 
-                    var clientFactory = context.RequestServices.GetRequiredService<IHttpClientFactory>();
-                    var eventsClient = clientFactory.CreateClient();
-                    var eventsRequest = new HttpRequestMessage(HttpMethod.Get, "http://localhost:5010/events");
-                    var eventsResponse = await eventsClient.SendAsync(eventsRequest);
-                    var eventsSerializer = new DataContractJsonSerializer(typeof(FootballEvent[]));
-                    var eventsStream = await eventsResponse.Content.ReadAsStreamAsync();
-                    var events = (FootballEvent[])eventsSerializer.ReadObject(eventsStream);
                     var firstEvent = events[0];
                     var teamNames = firstEvent.gameId.Split('-');
                     var leaderboard = new Game[] {

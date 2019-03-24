@@ -3,9 +3,13 @@
 namespace LeaderboardApp
 {
     [DataContract]
-    internal class FootballEvent
+    public class FootballEvent
     {
         [DataMember]
         public string gameId;
+        [DataMember]
+        public string type;
+        [DataMember]
+        public string team;
     }
 }
