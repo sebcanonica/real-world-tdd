@@ -1,4 +1,5 @@
 ﻿using Abbotware.Interop.NUnit;
+using FluentAssertions;
 using FluentAssertions.Json;
 using LeaderboardApp;
 using Microsoft.AspNetCore.Hosting;
@@ -19,8 +20,8 @@ namespace Leaderboard.Test
     public class Leaderboard_should
     {
 
-        [Test,Timeout(6000)]
-        [Ignore("System test")]
+        //[Test,Timeout(6000)]
+        [Category("System test")]
         public async Task Display_a_leaderboard_with_the_state_of_all_games()
         {
             var server = new TestServer(
@@ -29,11 +30,24 @@ namespace Leaderboard.Test
 
             var actual = await FetchLeaderboard(server);
 
-            dynamic firstGame = actual.First;
-            Check.ThatDynamic(firstGame.home.Value).IsEqualTo("Lyon");
-            Check.ThatDynamic(firstGame.visitor.Value).IsEqualTo("Marseille");
-            Check.ThatDynamic(firstGame.state.Value).IsEqualTo("in progress");
-            Check.ThatDynamic(firstGame.score.Count).IsEqualTo(2);
+            foreach (var game in actual)
+            {
+                game.Should().HaveElement("home");
+                game["home"].Type.Should().Be(JTokenType.String);
+                game.Should().HaveElement("visitor");
+                game["visitor"].Type.Should().Be(JTokenType.String);
+                game.Should().HaveElement("score");
+                game["score"].Type.Should().Be(JTokenType.Array);
+                game["score"].Should().HaveCount(2);
+                foreach (var score in game["score"])
+                {
+                    score.Type.Should().Be(JTokenType.Integer);
+                    score.Value<int>().Should().BeGreaterOrEqualTo(0);
+                }
+                game.Should().HaveElement("state");
+                game["state"].Type.Should().Be(JTokenType.String);
+                game["state"].Value<string>().Should().BeOneOf("in progress", "finished");
+            }
         }
 
         [Test]
@@ -73,8 +87,8 @@ namespace Leaderboard.Test
     [TestFixture]
     public class HttpFootballEventsSource_should
     {
-        [Test, Timeout(6000)]
-        [Ignore("Focus integration test")]
+        //[Test, Timeout(6000)]
+        [Category("Focused integration test")]
         public async Task Receive_valid_events_from_real_http_service()
         {
             var serviceProvider = new ServiceCollection().AddHttpClient().BuildServiceProvider();
@@ -101,7 +115,7 @@ namespace Leaderboard.Test
             CheckFootballEvents(footballEvents);
         }
 
-        private static void CheckFootballEvents(FootballEvent[] footballEvents)
+        public static void CheckFootballEvents(FootballEvent[] footballEvents)
         {
             foreach (var footballEvent in footballEvents)
             {
@@ -119,12 +133,82 @@ namespace Leaderboard.Test
 
         public FakeFootballEventSource(FootballEvent[] events)
         {
-            _events = events;
+            HttpFootballEventsSource_should.CheckFootballEvents(events);
+            _events = events;            
         }
 
         public Task<FootballEvent[]> FetchEvents()
-        {
+        {            
             return Task.FromResult(_events);
+        }
+    }
+
+    [TestFixture]
+    public class LeaderboardComputer_should
+    {
+        [Test]
+        public void Return_one_in_progress_game_when_given_only_a_game_start_event()
+        {
+            var leaderboard = LeaderboardComputer.FromEvents(
+                new FootballEvent { type = "game-start", gameId = "uriage-meylan" }
+            );
+
+            leaderboard.Should().BeEquivalentTo(
+                new Game { home = "Uriage", visitor = "Meylan", state = "in progress", score = new int[] { 0, 0 } }
+            );
+        }
+
+        [Test]
+        public void Return_two_in_progress_game_when_given_two_game_start_events()
+        {
+            var leaderboard = LeaderboardComputer.FromEvents(
+                new FootballEvent { type = "game-start", gameId = "uriage-meylan" },
+                new FootballEvent { type = "game-start", gameId = "fontaine-sassenage" }
+            );
+
+            leaderboard.Should().BeEquivalentTo(
+                new Game { home = "Uriage", visitor = "Meylan", state = "in progress", score = new int[] { 0, 0 } },
+                new Game { home = "Fontaine", visitor = "Sassenage", state = "in progress", score = new int[] { 0, 0 } }
+            );
+        }
+
+        [Test]
+        public void Return_a_finished_game_when_given_both_game_start_and_end_events()
+        {
+            var leaderboard = LeaderboardComputer.FromEvents(
+                new FootballEvent { type = "game-start", gameId = "uriage-meylan" },
+                new FootballEvent { type = "game-end", gameId = "uriage-meylan" }
+            );
+
+            leaderboard.Should().BeEquivalentTo(
+                new Game { home = "Uriage", visitor = "Meylan", state = "finished", score = new int[] { 0, 0 } }
+            );
+        }
+
+        [Test]
+        public void Add_point_to_home_team_on_a_goal_event()
+        {
+            var leaderboard = LeaderboardComputer.FromEvents(
+                new FootballEvent { type = "game-start", gameId = "uriage-meylan" },
+                new FootballEvent { type = "goal", gameId = "uriage-meylan", team = "uriage" }
+            );
+
+            leaderboard.Should().BeEquivalentTo(
+                new Game { home = "Uriage", visitor = "Meylan", state = "in progress", score = new int[] { 1, 0 } }
+            );
+        }
+
+        [Test]
+        public void Add_point_to_visitor_team_on_a_goal_event()
+        {
+            var leaderboard = LeaderboardComputer.FromEvents(
+                new FootballEvent { type = "game-start", gameId = "uriage-meylan" },
+                new FootballEvent { type = "goal", gameId = "uriage-meylan", team = "meylan" }
+            );
+
+            leaderboard.Should().BeEquivalentTo(
+                new Game { home = "Uriage", visitor = "Meylan", state = "in progress", score = new int[] { 0, 1 } }
+            );
         }
     }
 }

@@ -23,28 +23,18 @@ namespace LeaderboardApp
             {
                 router.MapGet("/leaderboard", async context =>
                 {
-                    string FirstLetterToUpper(string input)
-                    {
-                        return char.ToUpper(input[0]) + input.Substring(1);
-                    }
                     var eventsSource = context.RequestServices.GetRequiredService<IFootballEventsSource>();
                     var events = await eventsSource.FetchEvents();
 
-                    var firstEvent = events[0];
-                    var teamNames = firstEvent.gameId.Split('-');
-                    var leaderboard = new Game[] {
-                                    new Game {
-                                        home = FirstLetterToUpper(teamNames[0]),
-                                        visitor = FirstLetterToUpper(teamNames[1]),
-                                        score = new int[] {0, 0},
-                                        state = "in progress"
-                                    }
-                                };
+                    var leaderboard = LeaderboardComputer.FromEvents(events);
+
+                    context.Response.ContentType = "application/json";
                     var ser = new DataContractJsonSerializer(leaderboard.GetType());
                     ser.WriteObject(context.Response.Body, leaderboard);
                 });
             });
         }
 
+        
     }
 }

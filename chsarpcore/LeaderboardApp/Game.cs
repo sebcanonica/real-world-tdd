@@ -3,7 +3,7 @@
 namespace LeaderboardApp
 {
     [DataContract]
-    internal class Game
+    public class Game
     {
         [DataMember]
         public string home;
